@@ -4,6 +4,7 @@ author: "Peter Amerkhanian"
 date: "9/14/2022"
 output:
   html_document: default
+  github_document: default
 ---
 
 ```{r setup, include=FALSE}

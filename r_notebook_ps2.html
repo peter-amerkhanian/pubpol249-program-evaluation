@@ -685,21 +685,16 @@ men or women</p>
 the dataset before you start running quantile regressions to measure the
 racial income level gaps at the median.</p>
 <pre class="r"><code>full_file &lt;- read_dta(&quot;usa_00003/usa_00003.dta&quot;)</code></pre>
-<p>/<em>——————————————————————————————————————————————————————————————————————————%
-This do-file creates a dataset on black-white earnings gaps over
+<p>This do-file creates a dataset on black-white earnings gaps over
 1950-2019 at the median (and 90th percentile) controlling for age
-groups.
-</em>——————————————————————————————————————————————————————————————————————————%
-STEPS: <em>0. Set directories. </em>1. Import census and ACS data,
+groups.</p>
+<p>STEPS: <em>0. Set directories. </em>1. Import census and ACS data,
 adjust for inflation. <em>2. Generate and prepare variables for
 analysis. </em>3. Perform quantile regression. <em>4. Save regression
 results as dataset. </em>5. Plot graphs.</p>
-<p><em>first created: 9/8/2022 </em>last updated: 9/8/2022
-<em>—————————————————————————————————————————————————————————————————————————–
-</em>1. Import census and ACS data, adjust for inflation.
-<em>——————————————————————————————————————————————————————————————————————————%
-</em>code for limiting years if pulled an extract with too many years
-use “data/raw/usa_00053.dta”, clear *tab year keep
+<p><em>first created: 9/8/2022 </em>last updated: 9/8/2022</p>
+<p><em>code for limiting years if pulled an extract with too many years
+use “data/raw/usa_00053.dta”, clear </em>tab year keep
 inlist(year,1950,1960,1970,1980,1990,2000,2007,2010,2014,2019) saveold
 “data/raw/usa_00053.dta”, replace</p>
 <pre class="r"><code>years_vec &lt;- c(1950,
@@ -718,30 +713,56 @@ processing manageable foreach yr in 1950 1960 1970 1980 1990 2000 2007
 2010 2014 2019 { use “data/raw/usa_00053.dta”, clear keep if
 year==<code>yr&#39;         sample 10         tempfile cenacs</code>yr’ save
 “<code>cenacs</code>yr’’” }</p>
+<pre class="r"><code>df_samples &lt;- df_years_filtered %&gt;% group_by(year) %&gt;% slice_sample(prop=.1)</code></pre>
 <p>*append 10-percent samples of each year into one master dataset use
 `cenacs1950’, clear</p>
 <pre><code>foreach yr in 1950 1960 1970 1980 1990 2000 2007 2010 2014 2019 {
     append using &quot;`cenacs`yr&#39;&#39;&quot;
     }
 save &quot;data/output/census_acs_1950_2019.dta&quot;, replace</code></pre>
-<p><em>——————————————————————————————————————————————————————————————————————————%<br />
-</em>2. Generate and prepare variables for analysis.
-<em>——————————————————————————————————————————————————————————————————————————%
-</em>use “data/output/census_acs_1950_2019.dta”, clear *Sampling
+<p><em>2. Generate and prepare variables for analysis.
+</em>——————————————————————————————————————————————————————————————————————————%
+<em>use “data/output/census_acs_1950_2019.dta”, clear </em>Sampling
 criteria - limited to ages 25-54 drop if age &lt; 25 | age &gt; 54</p>
+<pre class="r"><code>df_age_filter &lt;- df_samples %&gt;% filter(age &gt;= 25 &amp; age &lt;= 54)</code></pre>
 <pre><code>*Adjust income variables given changing definitions over time 
 *Replace observations with inconsistent wage
-    drop if incwage &gt;= 999998
-    *replace incbusfm = . if incbusfm == 99999
+    drop if incwage &gt;= 999998</code></pre>
+<pre class="r"><code>df_inc_filter &lt;- df_age_filter %&gt;% filter(incwage &lt; 999998)</code></pre>
+<pre><code>    *replace incbusfm = . if incbusfm == 99999
     replace incbusfm = 0 if incbusfm &lt; 0
     *replace incbus = . if incbus == 999999
     replace incbus = 0 if incbus &lt; 0
     *replace incfarm = . if incfarm == 999999
     replace incfarm = 0 if incfarm &lt; 0
     *replace incbus00 = . if incbus00 == 999999
-    replace incbus00 = 0 if incbus00 &lt; 0
-
-*Adjust income variables given changing definitions over time 
+    replace incbus00 = 0 if incbus00 &lt; 0</code></pre>
+<pre class="r"><code>df_inc_replac &lt;- df_inc_filter %&gt;%
+  mutate(incbusfm = replace(incbusfm,
+                            incbusfm == 99999,
+                            NA)) %&gt;%
+  mutate(incbusfm = replace(incbusfm,
+                            incbusfm &lt;0,
+                            0)) %&gt;%
+  mutate(incbusfm = replace(incbus,
+                            incbus == 99999,
+                            NA)) %&gt;%
+  mutate(incbusfm = replace(incbus,
+                            incbus &lt; 0,
+                            0)) %&gt;%
+  mutate(incbusfm = replace(incfarm,
+                            incfarm == 99999,
+                            NA)) %&gt;%
+  mutate(incbusfm = replace(incfarm,
+                            incfarm &lt;0,
+                            0)) %&gt;%
+  mutate(incbusfm = replace(incbus00,
+                            incbus00 == 99999,
+                            NA)) %&gt;%
+  mutate(incbusfm = replace(incbus00,
+                            incbus00 &lt;0,
+                            0))</code></pre>
+<pre><code>*Adjust income variables given changing definitions over time 
 replace incwage = 1.2 * incwage if ind1950 == 105
 replace incbusfm = 1.4 * incbusfm if ind1950 == 105 &amp; year &lt;= 1960
 replace incbusfm = incbus + 1.4 * incfarm if year &gt;= 1970 &amp; year &lt;= 1990
