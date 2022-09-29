@@ -13,8 +13,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
+library(tidyr)
 library(knitr)
 library(haven)
+library(quantreg)
+library(lmtest)
+library(sandwich)
+library(ggplot2)
 ```
 
 # Question 1 
@@ -44,54 +49,60 @@ q1_summary_table <- data_tennessee_star_q1 %>%
     Maximum = max(math_score)
   ) %>%
   rename(`Treatment Group` = treat)
+
 kable(q1_summary_table)
 ```
 ## Question 1.2
 Conduct the regression with robust standard errors (using math_score as the outcome and treat as the predictor).
 
 **Answer:**  
-*Note: R's `lm()` command will, by default, run a regression with robust standard errors*
+
 ```{r}
 model1 <- lm(math_score ~ treat, data=data_tennessee_star_q1)
-model1_summary <- summary(model1)
+
+
+model1_summary <- coeftest(model1, vcov = vcovHC(model1, type="HC0"))
 model1_summary
+
+#model1_summary <- summary(model1)
+#model1_summary
 ```
 - What is control group mean?
 ```{r}
 cat(
-  model1_summary$coef['(Intercept)', 'Estimate']
+  model1_summary['(Intercept)', 'Estimate']
 )
 ```
 - What is the treatment group mean?
 ```{r}
 cat(
-  model1_summary$coef['(Intercept)', 'Estimate'] +
-    model1_summary$coef['treat', 'Estimate']
+  model1_summary['(Intercept)', 'Estimate'] +
+    model1_summary['treat', 'Estimate']
 )
 ```
 - What is the estimated treatment effect?
 ```{r}
 cat(
-  model1_summary$coef['treat', 'Estimate']
+  model1_summary['treat', 'Estimate']
 )
 ```
 - What is the estimated standard error on the treatment effect?
 ```{r}
 cat(
-  model1_summary$coef["treat","Std. Error"]
+  model1_summary["treat","Std. Error"]
 )
 ```
 - What is the “t statistic”?
 ```{r}
 cat(
-  model1_summary$coef["treat","t value"]
+  model1_summary["treat","t value"]
 )
 ```
 - Is the impact of treat on math_scores statistically significant?
 Yes, it's very significant, with a $p-value$ as follows:
 ```{r}
 cat(
-  model1_summary$coef['treat', 'Pr(>|t|)']
+  model1_summary['treat', 'Pr(>|t|)']
   )
 ```
 ## Question 1.3
@@ -131,7 +142,7 @@ t_{\hat{\beta}}=\frac{\hat{\beta} - \beta_0} {SE(\hat{\beta})}
 
 
 - p-value: Increase, Decrease, or Stay the Same?  
-The p-value, or, probability of a false positive error, will decrease as sample size increases.
+The p-value, or, probability of a false positive error, **will decrease as sample size increases**.
 
 # Question 2
 You are given cleaned data from the Gerber and Green experiment on the effects of canvassing, direct mail, and phone calls on voter turnout. This question walks through the following tasks, either in R or Stata (please be sure to share your code!):
@@ -148,38 +159,38 @@ data_gerber_q2 <- read_csv("data_gerber_q2.csv",
 Conduct the regression with robust standard errors (using vote as the outcome and treat as the predictor). Please answer the following:
 ```{r}
 model2 <- lm(vote ~ treat, data=data_gerber_q2)
-model2_summary <- summary(model2)
+model2_summary <- coeftest(model2, vcov = vcovHC(model2, type="HC0"))
 model2_summary
 ```
 - What is control group mean? 
 ```{r}
 cat(
-  model2_summary$coef['(Intercept)', 'Estimate']
+  model2_summary['(Intercept)', 'Estimate']
   )
 ```
 - What is the treatment group mean?
 ```{r}
 cat(
-  model2_summary$coef['(Intercept)', 'Estimate'] +
-      model2_summary$coef['treat', 'Estimate']
+  model2_summary['(Intercept)', 'Estimate'] +
+      model2_summary['treat', 'Estimate']
   )
 ```
 - What is the estimated treatment effect?
 ```{r}
 cat(
-  model2_summary$coef['treat', 'Estimate']
+  model2_summary['treat', 'Estimate']
   )
 ```
 - What is the estimated standard error on the treatment effect? 
 ```{r}
 cat(
-  model2_summary$coef['treat', 'Std. Error']
+  model2_summary['treat', 'Std. Error']
   )
 ```
 - What is the “t statistic”? 
 ```{r}
 cat(
-  model2_summary$coef['treat', 't value']
+  model2_summary['treat', 't value']
   )
 ```
 - Is the impact of treat on vote statistically significant? 
@@ -187,8 +198,48 @@ cat(
 Yes, I would go as far to say it's extremely significant, with a t statistic that large and with a $p-value$ as follows:
 ```{r}
 cat(
-  model2_summary$coef['treat', 'Pr(>|t|)']
+  model2_summary['treat', 'Pr(>|t|)']
   )
+```
+## Question 2.2
+**Answer:**  
+The results, below, are the same as the results I obtained in my regression in Question 2.1, because by setting equal variance to False I am doing the same operations as in linear regression with robust standard errors.
+```{r}
+t.test(vote ~ treat, data=data_gerber_q2, var.equal=FALSE)
+```
+
+## Question 2.3 (Same as Q 1.4)
+Consider the case where we double the sample size. Holding all else equal, we would see the following:  
+
+- Standard Error: Increase, Decrease, or Stay the Same?  
+Given that the sample size, $n$ is in the denominator of the formula for standard error, **Standard Error decreases as sample size increases.**
+```{=latex}
+\begin{equation*}
+SE=\frac{\sigma}{\sqrt{n}} \\
+\frac{\sigma}{\sqrt{n}} > \frac{\sigma}{\sqrt{2n}}
+\end{equation*}
+
+```
+
+
+- t-statistic: Increase, Decrease, or Stay the Same?  
+Given the formula for the t statistic below, as sample size increases, $SE$, the denomiator, decreases, and so **the t statistic will increase.**
+```{=latex}
+\begin{equation*}
+t_{\hat{\beta}}=\frac{\hat{\beta} - \beta_0} {SE(\hat{\beta})}
+\end{equation*}
+
+```
+
+
+- p-value: Increase, Decrease, or Stay the Same?  
+The p-value, or, probability of a false positive error, **will decrease as sample size increases**.
+
+```{r}
+rm(data_gerber_q2)
+rm(data_tennessee_star_q1)
+rm(model1)
+rm(model2)
 ```
 
 # Question 3: replicating measures of Black-white inequality as in Bayer and Charles (2018)
@@ -203,25 +254,17 @@ Please read below:
 full_file <- read_dta("usa_00003/usa_00003.dta")
 ```
 
-
+### 1.Begin Data Processing
 This do-file creates a dataset on black-white earnings gaps over 1950-2019 at the median (and 90th percentile) controlling for age groups.
 
-STEPS:
-	*0. Set directories.
-	*1. Import census and ACS data, adjust for inflation.
-	*2. Generate and prepare variables for analysis.
-	*3. Perform quantile regression.
-	*4. Save regression results as dataset.
-	*5. Plot graphs.
-	
-*first created: 9/8/2022
-*last updated:  9/8/2022
-
+Stata Code:
+```
 *code for limiting years if pulled an extract with too many years
-	use "data/raw/usa_00053.dta", clear
-	*tab year
-	keep inlist(year,1950,1960,1970,1980,1990,2000,2007,2010,2014,2019)
-	saveold "data/raw/usa_00053.dta", replace
+use "data/raw/usa_00053.dta", clear
+*tab year
+keep inlist(year,1950,1960,1970,1980,1990,2000,2007,2010,2014,2019)
+saveold "data/raw/usa_00053.dta", replace
+```
 ```{r}
 years_vec <- c(1950,
                1960,
@@ -234,50 +277,41 @@ years_vec <- c(1950,
                2014,
                2019)
 df_years_filtered <- full_file %>% filter(year %in% years_vec)
+rm(full_file)
 ```
 
-*split dataset into 10 percent samples of each year to make processing manageable
-	foreach yr in 1950 1960 1970 1980 1990 2000 2007 2010 2014 2019 {
-		use "data/raw/usa_00053.dta", clear
-		keep if year==`yr'
-		sample 10
-		tempfile cenacs`yr'
-		save "`cenacs`yr''"
-	}
+### 2. Generate and prepare variables for analysis.
+Stata Code:
+```
+*use "data/output/census_acs_1950_2019.dta", clear
+*Sampling criteria - limited to ages 25-54
+	drop if age < 25 | age > 54
+```
 ```{r}
-df_samples <- df_years_filtered %>% group_by(year) %>% slice_sample(prop=.1)
+df_age_filter <- df_years_filtered %>% filter(age >= 25 & age <= 54)
+rm(df_years_filtered)
 ```
-
-*append 10-percent samples of each year into one master dataset
-	use `cenacs1950', clear
-
-	foreach yr in 1950 1960 1970 1980 1990 2000 2007 2010 2014 2019 {
-		append using "`cenacs`yr''"
-		}
-	save "data/output/census_acs_1950_2019.dta", replace
-	
-*2. Generate and prepare variables for analysis.
-*------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------%
- *use "data/output/census_acs_1950_2019.dta", clear
-	*Sampling criteria - limited to ages 25-54
-		drop if age < 25 | age > 54
-```{r}
-df_age_filter <- df_samples %>% filter(age >= 25 & age <= 54)
+Stata Code:
 ```
-	*Adjust income variables given changing definitions over time 
-	*Replace observations with inconsistent wage
-		drop if incwage >= 999998
+*Adjust income variables given changing definitions over time 
+*Replace observations with inconsistent wage
+	drop if incwage >= 999998
+```
 ```{r}
 df_inc_filter <- df_age_filter %>% filter(incwage < 999998)
+rm(df_age_filter)
 ```
-		*replace incbusfm = . if incbusfm == 99999
-		replace incbusfm = 0 if incbusfm < 0
-		*replace incbus = . if incbus == 999999
-		replace incbus = 0 if incbus < 0
-		*replace incfarm = . if incfarm == 999999
-		replace incfarm = 0 if incfarm < 0
-		*replace incbus00 = . if incbus00 == 999999
-		replace incbus00 = 0 if incbus00 < 0
+Stata Code:
+```
+*replace incbusfm = . if incbusfm == 99999
+replace incbusfm = 0 if incbusfm < 0
+*replace incbus = . if incbus == 999999
+replace incbus = 0 if incbus < 0
+*replace incfarm = . if incfarm == 999999
+replace incfarm = 0 if incfarm < 0
+*replace incbus00 = . if incbus00 == 999999
+replace incbus00 = 0 if incbus00 < 0
+```
 ```{r}
 df_inc_replac <- df_inc_filter %>%
   mutate(incbusfm = replace(incbusfm,
@@ -304,59 +338,237 @@ df_inc_replac <- df_inc_filter %>%
   mutate(incbusfm = replace(incbus00,
                             incbus00 <0,
                             0))
-  
+rm(df_inc_filter)  
 ```
-	*Adjust income variables given changing definitions over time 
-	replace incwage = 1.2 * incwage if ind1950 == 105
-	replace incbusfm = 1.4 * incbusfm if ind1950 == 105 & year <= 1960
-	replace incbusfm = incbus + 1.4 * incfarm if year >= 1970 & year <= 1990
-	replace incbusfm = incbus00 if year >= 2000
-	replace incbusfm = 1.4 * incbus00 if year >= 2000 & ind1950 == 105
+Stata Code:
+```
+*Adjust income variables given changing definitions over time 
+replace incwage = 1.2 * incwage if ind1950 == 105
+replace incbusfm = 1.4 * incbusfm if ind1950 == 105 & year <= 1960
+replace incbusfm = incbus + 1.4 * incfarm if year >= 1970 & year <= 1990
+replace incbusfm = incbus00 if year >= 2000
+replace incbusfm = 1.4 * incbus00 if year >= 2000 & ind1950 == 105
+```
+```{r}
+df_inc_mut <- df_inc_replac %>%
+  mutate(incwage = ifelse(ind1950 == 105, 1.2 * incwage, incwage)) %>%
+  mutate(incbusfm = ifelse(ind1950 == 105 &
+                             year <= 1960, 1.4 * incbusfm, incbusfm)) %>%
+  mutate(incbusfm = ifelse(year >= 1970 &
+                             year <= 1990, incbus + 1.4 * incfarm, incbusfm)) %>%
+  mutate(incbusfm = ifelse(year >= 2000, incbus00, incbusfm)) %>%
+  mutate(incbusfm = ifelse(year >= 2000 &
+                             ind1950 == 105, 1.4 * incbus00, incbusfm))
+rm(df_inc_replac)
+```
+Stata Code:
+```
+*Sum up income
+gen inc = incwage + incbusfm 
+replace inc = incwage if inc == .
+```
+```{r}
+df_inc_mut <- df_inc_mut %>% mutate(inc = incwage + incbusfm)
+df_inc_mut <- df_inc_mut %>% mutate(inc = ifelse(is.na(inc), incwage, inc))
+```
+Stata Code:
+```
+*merge in inflation numbers
+merge m:1 year using "data/raw/cpi_acs.dta"
+keep if inlist(year,1950,1960,1970,1980,1990,2000,2007,2010,2014,2019)
+drop _m
+```
+```{r}
+cpi <- read_csv("R_CPI_U_RS.csv", show_col_types = FALSE)
+cpi <- cpi %>%
+  filter(Year %in% years_vec) %>%
+  rename(year = Year) %>%
+  rename(CPI_1977 = `R-CPI-U-RS1 Index               (December 1977 = 100)`)
 
-	*Sum up income
-	gen inc = incwage + incbusfm 
-	replace inc = incwage if inc == .
+merged <- df_inc_mut %>% inner_join(cpi, by = "year")
+rm(cpi)
+```
+Stata Code:
+```
+* adjust to real 2019 dollars
+gen real_earnings = inc * (376.5/CPI_1977)
+```
+```{r}
+merged_w_sample <- merged %>% mutate(real_earnings = inc * (376.5/CPI_1977))
+rm(merged)
+```
+Stata Code:
+```
+*create samples dummies for 3 different figures
+gen sample1=0
+gen sample2=0
+gen sample3=0
+replace sample1 = 1 if sex==1 & real_earnings>1 /*for working men only*/
+replace sample2 = 1 if sex==1 /*all men*/
+replace sample3 = 1 /*all men and women*/
+```
+```{r}
+merged_w_sample <- merged_w_sample %>%
+  mutate(sample1 = ifelse(sex == 1 & real_earnings > 1, 1, 0)) %>%
+  mutate(sample2 = ifelse(sex == 1, 1, 0)) %>%
+  mutate(sample3 = 1) 
+```
+Stata Code:
+```
+* log real earnings
+gen logrealearn = log(real_earnings + 1)
+```
+```{r}
+merged_w_sample <- merged_w_sample %>% mutate(logrealearn = log(real_earnings + 1))
+```
+Stata Code:
+```
+* genrate age controls
+*gen ageg1 = age > 24 & age < 30* Baseline age group
+gen ageg2 = age > 29 & age < 35
+gen ageg3 = age > 34 & age < 40
+gen ageg4 = age > 39 & age < 45
+gen ageg5 = age > 44 & age < 50
+gen ageg6 = age > 49 & age < 55
+drop age
+```
+```{r}
+merged_w_sample <- merged_w_sample %>%
+  mutate(ageg1 = age > 24 & age < 30) %>%
+  mutate(ageg2 = age > 29 & age < 35) %>% 
+  mutate(ageg3 = age > 34 & age < 40) %>% 
+  mutate(ageg4 = age > 39 & age < 45) %>% 
+  mutate(ageg5 = age > 44 & age < 50) %>% 
+  mutate(ageg6 = age > 49 & age < 55) 
+```
+Stata Code:
+```
+* racial dummy variables
+gen black = race == 2 & hispan == 0
+gen white = race == 1 & hispan == 0
+gen other = black == 0 & white == 0
+```
+```{r}
+merged_w_sample <- merged_w_sample %>%
+  mutate(black = (race == 2 & hispan == 0)) %>%
+  mutate(white = (race == 1 & hispan == 0)) %>% 
+  mutate(other = (black == 0 & white == 0))
+```
+Stata Code:
+```
+* racial category variable
+gen 	race_string="Other"
+replace race_string="Black" if race==2
+replace race_string="White" if race==1
+```
+```{r}
+merged_w_sample <- merged_w_sample %>%
+  mutate(race_string = "Other") %>% 
+  mutate(race_string=ifelse(race == 2, "Black", race_string)) %>% 
+  mutate(race_string=ifelse(race == 1, "White", race_string)) 
+```
 
-	*merge in inflation numbers
-	merge m:1 year using "data/raw/cpi_acs.dta"
-	keep if inlist(year,1950,1960,1970,1980,1990,2000,2007,2010,2014,2019)
-	drop _m
+c.	Consolidating Years: Years 2007, 2014 and 2019 as displayed on the graph will contain multiple years of data.
+i.	Assign years 2005-2006 a value of 2007.
+ii.	Assign year 2013 a value of 2014.
+iii.	Assign year 2018 a value of 2019.
+iv.	(You need to add this to the cleaning code)
+```{r}
+merged_w_sample <- merged_w_sample %>% filter(year %in% c(1950, 1960, 1970, 1980, 1990, 2000, 2007, 2010, 2014, 2019))
+```
+### 3. Perform quantile regressions to compute racial earnings level gaps at different percentiles and plot graphs
+3.	Plotting Figure
+  a.	Perform Quantile Regression on Each Sample
+    i.	A quantile regression allows us to calculate the earnings gaps between white and Black individuals at different spots (quantiles) in the earnings distribution.
+    ii.	Identify the log point gap at the median.
+      1.	This gap is represented by the coefficient on the black dummy variable in the quantile regression. 
+    iii.	Control for six 5-year age categories mentioned above to account for cohort size and life-cycle effects.
+    iv.	Control for “other” races. 
+      1.	This allows us to hone in on just the Black-White Gap.
+    v.	Perform this quantile regression for each year in the data, and for each sample definition. 
 
-	* adjust to real 2019 dollars
-	gen real_earnings = inc * (376.5/CPI_1977)
+    
+    
+```{r}
+#rq_model_1 <- merged_w_sample %>%
+#  rq(
+#    formula ="logrealearn ~ black",
+#    data = .,
+#    tau = 0.5
+#  )
+#print(rq_model_1$coefficients['blackTRUE'])
+```
+b.	Store Quantile Regression Coefficients per Year per Sample as a Dataset
+i.	For each sample, these datasets show the log point difference between: Log earnings for Black individuals at the median of the Black earnings distribution vs. white individuals at the median of the white earnings distribution
+ii.	You can use the parmest command in Stata to save parameters. You will initially save one dataset for each year, and you will ultimately want to combine this into a single dataset for plotting.
 
-	*create samples dummies for 3 different figures
-		gen sample1=0
-		gen sample2=0
-		gen sample3=0
+```{r}
+rq_model_1 <- merged_w_sample %>% filter(sample3 == 1) %>% filter(year == 1950) %>% 
+  rq(
+    formula ="logrealearn ~ black + ageg1 + ageg2 + ageg3 + ageg4 + ageg5 + other",
+    data = .,
+    tau = 0.5,
+    weights = perwt
+  )
+summary(rq_model_1)
+```
 
-		replace sample1 = 1 if sex==1 & real_earnings>1 /*for working men only*/
-		replace sample2 = 1 if sex==1 /*all men*/
-		replace sample3 = 1 /*all men and women*/
 
-	* log real earnings
-	gen logrealearn = log(real_earnings + 1)
+```{r}
+years <- merged_w_sample %>% distinct(year) %>% pull(year)
 
-	* genrate age controls
-		*gen ageg1 = age > 24 & age < 30* Baseline age group
-		gen ageg2 = age > 29 & age < 35
-		gen ageg3 = age > 34 & age < 40
-		gen ageg4 = age > 39 & age < 45
-		gen ageg5 = age > 44 & age < 50
-		gen ageg6 = age > 49 & age < 55
-		drop age
+formula1 = "logrealearn ~ black + ageg1 + ageg2 + ageg3 + ageg4 + ageg5 + other"
 
-	* racial dummy variables
-	gen black = race == 2 & hispan == 0
-	gen white = race == 1 & hispan == 0
-	gen other = black == 0 & white == 0
+betas_1 = c()
+# Sample 1
+for (i in 1:length(years)) {
+  rq_model_1 <- merged_w_sample %>% filter(year == years[i]) %>%
+    filter(sample1 == 1) %>%
+    rq(formula = formula1,
+       data = .,
+       tau = 0.5,
+    weights = perwt)
+  betas_1[i] = rq_model_1$coefficients['blackTRUE']
+}
 
-	* racial category variable
-	gen 	race_string="Other"
-	replace race_string="Black" if race==2
-	replace race_string="White" if race==1
+betas_2 = c()
+# Sample 2
+for (i in 1:length(years)) {
+  rq_model_1 <- merged_w_sample %>% filter(year == years[i]) %>%
+    filter(sample2 == 1) %>%
+    rq(formula = formula1,
+       data = .,
+       tau = 0.5,
+    weights = perwt)
+  betas_2[i] = rq_model_1$coefficients['blackTRUE']
+}
 
-*------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------%	
-*3. Perform quantile regressions to compute racial earnings level gaps at different percentiles and plot graphs
-*------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------%
+betas_3 = c()
+# Sample 3
+for (i in 1:length(years)) {
+  rq_model_1 <- merged_w_sample %>% filter(year == years[i]) %>%
+    filter(sample3 == 1) %>%
+    rq(formula = formula1,
+       data = .,
+       tau = 0.5,
+    weights = perwt)
+  betas_3[i] = rq_model_1$coefficients['blackTRUE']
+}
+```
+```{r}
+final_frame <- data.frame(betas_1, betas_2, betas_3, years_vec)
+names(final_frame) <- c("Working Men Only", "All Men", "All Men and Women", "year")
+melted <- final_frame %>% gather(key="Sample", value="beta", -year)
+kable(head(melted))
+```
+
+```{r}
+ggplot(data = melted, aes(x = year, y = beta, group = Sample)) +
+  geom_line(aes(color = Sample)) +
+  geom_point(aes(color = Sample)) +
+  ylim(-1, 0) +
+  ggtitle("Median white-Black Real Earnings Gap (in log points)") +
+  ylab("Real Earnings Gap (in log points)") +
+  xlab("Year")
+```
 
