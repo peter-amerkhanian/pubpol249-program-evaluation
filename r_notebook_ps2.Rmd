@@ -3,8 +3,8 @@ title: "PP249, Problem Set 2"
 author: "Peter Amerkhanian"
 date: "9/14/2022"
 output:
-  html_document: default
   github_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
